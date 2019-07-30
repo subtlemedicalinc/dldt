@@ -164,8 +164,8 @@ class BuildSubtle:
         self._make_command = run_args.make_command
         self._build_dir = os.path.join(THIS_DIR, "build")
         self._download_dir = os.path.join(THIS_DIR, "build", "download")
-        shutil.rmtree(self._download_dir)
-        shutil.rmtree(self._build_dir)
+        shutil.rmtree(self._download_dir, ignore_errors=True)
+        shutil.rmtree(self._build_dir, ignore_errors=True)
         os.makedirs(self._build_dir, exist_ok=True)
         os.makedirs(self._download_dir, exist_ok=True)
         self._mklml_enabled = True
