@@ -185,7 +185,7 @@ class BuildSubtle:
         self._set_up_mklml()
         self._set_up_python()
 
-    def build_inference_engine(self):
+    def build_inference_engine(self) -> bool:
         """Build the inference engine"""
         command = " ".join(
             [self._cmake_command]
@@ -203,7 +203,9 @@ class BuildSubtle:
         logging.info(proc.stdout.decode())
         if proc.returncode != 0:
             logging.error("cmake command failed!")
-            return
+            raise RuntimeError(
+                "cmake command failed with code %d", proc.returncode
+            )
         command = self._make_command + " -j2"
         logging.info("Command to run: %s", command)
         proc = subprocess.run(
@@ -216,10 +218,35 @@ class BuildSubtle:
         logging.info(proc.stdout.decode())
         if proc.returncode != 0:
             logging.error("make command failed!")
-            return
+            raise RuntimeError(
+                "make command failed with code %d", proc.returncode
+            )
+        logging.info("Finished building inference engine")
+
+    def package_inference_engine(self):
+        """Package the inference engine components"""
+        logging.info("Packaging inference engine binaries...")
+        shutil.make_archive(
+            os.path.join(THIS_DIR, "inference-engine"),
+            "zip",
+            root_dir=os.path.join(THIS_DIR, "..", "inference-engine"),
+            base_dir=os.path.join(THIS_DIR, "..", "inference-engine", "bin"),
+        )
+
+    def package_model_optimizer(self):
+        """Package the model optimizer components"""
+        logging.info("Packaging model optimizer source...")
+        shutil.make_archive(
+            os.path.join(THIS_DIR, "model-optimizer"),
+            "zip",
+            root_dir=os.path.join(THIS_DIR, ".."),
+            base_dir=os.path.join(THIS_DIR, "..", "model-optimizer"),
+        )
 
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
     builder = BuildSubtle()
     builder.build_inference_engine()
+    builder.package_inference_engine()
+    builder.package_model_optimizer()
