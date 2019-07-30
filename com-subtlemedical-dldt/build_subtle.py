@@ -7,6 +7,7 @@ Created on 2019/07/29
 
 
 import argparse
+from glob import glob
 import hashlib
 import logging
 import os
@@ -88,11 +89,26 @@ class BuildSubtle:
             MKLML_URL, self._mklml_local_path
         )
         if self._mklml_enabled:
-            if not self._cmake_args.endswith("\n"):
-                self._cmake_args += "\n"
-            self._cmake_args += "-DGEMM=MKL -DMKLROOT={}\n".format(
-                self._mklml_local_path
+            try:
+                shutil.unpack_archive(
+                    self._mklml_local_path, self._download_dir
+                )
+            except Exception:
+                logging.error("Unpacking MKL-ML package failed!")
+                return
+            mklml_unpack_paths = list(
+                p
+                for p in glob(os.path.join(self._download_dir, "mklml_lnx_*"))
+                if os.path.isdir(p)
             )
+            if mklml_unpack_paths:
+                if not self._cmake_args.endswith("\n"):
+                    self._cmake_args += "\n"
+                self._cmake_args += "-DGEMM=MKL -DMKLROOT={}\n".format(
+                    mklml_unpack_paths[0]
+                )
+            else:
+                logging.error("Missing expected directory after unpacking!")
 
     def _set_up_python(self):
         """Set up Python"""
@@ -146,11 +162,15 @@ class BuildSubtle:
         run_args = parser.parse_args(args)
         self._cmake_command = run_args.cmake_command
         self._make_command = run_args.make_command
-        self._build_dir = tempfile.TemporaryDirectory()
-        self._download_dir = tempfile.TemporaryDirectory()
+        self._build_dir = os.path.join(THIS_DIR, "build")
+        self._download_dir = os.path.join(THIS_DIR, "build", "download")
+        shutil.rmtree(self._download_dir)
+        shutil.rmtree(self._build_dir)
+        os.makedirs(self._build_dir, exist_ok=True)
+        os.makedirs(self._download_dir, exist_ok=True)
         self._mklml_enabled = True
         self._mklml_local_path = os.path.join(
-            self._download_dir.name, "mklml_lnx.tgz"
+            self._download_dir, "mklml_lnx.tgz"
         )
         self._python_enabled = True
         self._cmake_args = """
@@ -166,6 +186,7 @@ class BuildSubtle:
         self._set_up_python()
 
     def build_inference_engine(self):
+        """Build the inference engine"""
         command = " ".join(
             [self._cmake_command]
             + self._cmake_args.split()
@@ -177,11 +198,12 @@ class BuildSubtle:
             shell=True,
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
-            cwd=self._build_dir.name,
+            cwd=self._build_dir,
         )
+        logging.info(proc.stdout.decode())
         if proc.returncode != 0:
             logging.error("cmake command failed!")
-        logging.info(proc.stdout.decode())
+            return
         command = self._make_command + " -j2"
         logging.info("Command to run: %s", command)
         proc = subprocess.run(
@@ -189,11 +211,12 @@ class BuildSubtle:
             shell=True,
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
-            cwd=self._build_dir.name,
+            cwd=self._build_dir,
         )
+        logging.info(proc.stdout.decode())
         if proc.returncode != 0:
             logging.error("make command failed!")
-        logging.info(proc.stdout.decode())
+            return
 
 
 if __name__ == "__main__":
