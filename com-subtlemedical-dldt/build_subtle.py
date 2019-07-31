@@ -29,6 +29,13 @@ THIS_DIR = os.path.abspath(os.path.dirname(__file__))
 
 
 class BuildSubtle:
+    TARGET_LIST = [
+        "inference_engine",
+        "ie_api",
+        "ie_cpu_extension",
+        "MKLDNNPlugin",
+    ]
+
     @staticmethod
     def _check_mklml() -> bool:
         """Check if MKL-ML can be used"""
@@ -193,6 +200,7 @@ class BuildSubtle:
             + [os.path.join(THIS_DIR, "../inference-engine")]
         )
         logging.info("Command to run: %s", command)
+        tic = time()
         proc = subprocess.run(
             command,
             shell=True,
@@ -200,14 +208,20 @@ class BuildSubtle:
             stderr=subprocess.STDOUT,
             cwd=self._build_dir,
         )
-        logging.info(proc.stdout.decode())
+        with open(
+            os.path.join(self._build_dir, "subtle_cmake.log"), "w"
+        ) as cmake_log_fp:
+            cmake_log_fp.write(proc.stdout.decode())
+        toc = time()
+        logging.info("Cmake took %.2f seconds", toc - tic)
         if proc.returncode != 0:
             logging.error("cmake command failed!")
             raise RuntimeError(
                 "cmake command failed with code %d", proc.returncode
             )
-        command = self._make_command + " -j2"
+        command = self._make_command + " -j2 " + " ".join(self.TARGET_LIST)
         logging.info("Command to run: %s", command)
+        tic = time()
         proc = subprocess.run(
             command,
             shell=True,
@@ -215,7 +229,12 @@ class BuildSubtle:
             stderr=subprocess.STDOUT,
             cwd=self._build_dir,
         )
-        logging.info(proc.stdout.decode())
+        with open(
+            os.path.join(self._build_dir, "subtle_make.log"), "w"
+        ) as make_log_fp:
+            make_log_fp.write(proc.stdout.decode())
+        toc = time()
+        logging.info("Make took %.2f seconds", toc - tic)
         if proc.returncode != 0:
             logging.error("make command failed!")
             raise RuntimeError(
@@ -229,8 +248,10 @@ class BuildSubtle:
         shutil.make_archive(
             os.path.join(THIS_DIR, "inference-engine"),
             "zip",
-            root_dir=os.path.join(THIS_DIR, "..", "inference-engine"),
-            base_dir=os.path.join(THIS_DIR, "..", "inference-engine", "bin"),
+            root_dir=os.path.join(THIS_DIR, ".."),
+            # this makes everything in the zip file starts with
+            # inference-engine/bin
+            base_dir=os.path.join("inference-engine", "bin"),
         )
 
     def package_model_optimizer(self):
@@ -240,7 +261,8 @@ class BuildSubtle:
             os.path.join(THIS_DIR, "model-optimizer"),
             "zip",
             root_dir=os.path.join(THIS_DIR, ".."),
-            base_dir=os.path.join(THIS_DIR, "..", "model-optimizer"),
+            # this makes everything in the zip file starts with model-optimizer
+            base_dir="model-optimizer",
         )
 
 
