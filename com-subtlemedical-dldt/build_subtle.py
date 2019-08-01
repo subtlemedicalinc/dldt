@@ -108,6 +108,7 @@ class BuildSubtle:
                 for p in glob(os.path.join(self._download_dir, "mklml_lnx_*"))
                 if os.path.isdir(p)
             )
+            self._mklml_unpack_dir = mklml_unpack_paths[0]
             if mklml_unpack_paths:
                 if not self._cmake_args.endswith("\n"):
                     self._cmake_args += "\n"
@@ -179,6 +180,7 @@ class BuildSubtle:
         self._mklml_local_path = os.path.join(
             self._download_dir, "mklml_lnx.tgz"
         )
+        self._mklml_unpack_dir = ""
         self._python_enabled = True
         self._cmake_args = """
 -DCMAKE_BUILD_TYPE=Release
@@ -188,6 +190,7 @@ class BuildSubtle:
 -DENABLE_MYRIAD=OFF
 -DENABLE_OPENCV=OFF
 -DENABLE_VPU=OFF
+-DENABLE_PLUGIN_RPATH=OFF
 """
         self._set_up_mklml()
         self._set_up_python()
@@ -245,6 +248,53 @@ class BuildSubtle:
     def package_inference_engine(self):
         """Package the inference engine components"""
         logging.info("Packaging inference engine binaries...")
+        lib_dir = os.path.join(
+            THIS_DIR,
+            "..",
+            "inference-engine",
+            "bin",
+            "intel64",
+            "Release",
+            "lib",
+        )
+        # copy the libgomp.so.1
+        shutil.copyfile(
+            "/lib64/libgomp.so.1", os.path.join(lib_dir, "libgomp.so.1")
+        )
+        # copy the libtbb so files
+        tbb_lib_dir = os.path.join(
+            THIS_DIR, "..", "inference-engine", "temp", "tbb", "lib"
+        )
+        if os.path.exists(
+            os.path.join(tbb_lib_dir, "libtbb.so")
+        ) and os.path.exists(os.path.join(tbb_lib_dir, "libtbb.so.2")):
+            shutil.copyfile(
+                os.path.join(tbb_lib_dir, "libtbb.so"),
+                os.path.join(lib_dir, "libtbb.so"),
+            )
+            shutil.copyfile(
+                os.path.join(tbb_lib_dir, "libtbb.so.2"),
+                os.path.join(lib_dir, "libtbb.so.2"),
+            )
+        else:
+            logging.warning("Missing tbb so files!")
+        # copy the libmklml_gnu.so
+        if (
+            self._mklml_enabled
+            and self._mklml_unpack_dir
+            and os.path.exists(
+                os.path.join(self._mklml_unpack_dir, "lib", "libmklml_gnu.so")
+            )
+        ):
+            shutil.copyfile(
+                os.path.join(self._mklml_unpack_dir, "lib", "libmklml_gnu.so"),
+                os.path.join(lib_dir, "libmklml_gnu.so"),
+            )
+        elif self._mklml_enabled:
+            logging.warning(
+                "Missing libmklml_gnu.so file but MKL-ML is enabled!"
+            )
+        # create the archive
         shutil.make_archive(
             os.path.join(THIS_DIR, "inference-engine"),
             "zip",
