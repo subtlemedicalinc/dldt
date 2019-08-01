@@ -54,6 +54,8 @@ node {
                 yum -y install https://centos7.iuscommunity.org/ius-release.rpm > /dev/null
                 yum -y install python35u python35u-pip python35u-devel cmake3 > /dev/null
                 yum -y install boost-devel > /dev/null
+                git submodule init
+                git submodule update --recursive
                 pip3.5 install cython > /dev/null
                 python3.5 com-subtlemedical-dldt/build_subtle.py -c cmake3
             '''
