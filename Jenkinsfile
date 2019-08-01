@@ -47,7 +47,7 @@ node {
 
     stage("Build") {
         echo 'Building...'
-        docker.image("centos:7"){
+        docker.image("centos:7").inside {
             sh '''
                 yum -y install yum-utils zip unzip > /dev/null
                 yum -y groupinstall development > /dev/null
