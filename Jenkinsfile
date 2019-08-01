@@ -63,7 +63,7 @@ node {
     }
 
     stage("Package and Upload") {
-        if (env.BRANCH_NAME ==~ /(master|release\/(.*)|hotfix\/(.*))/) {
+        if (env.BRANCH_NAME ==~ /(master|release\/(.*)|develop|hotfix\/(.*))/) {
             echo "Uploading the artifacts to S3..."
             s3Upload(
                 file: "com-subtlemedical-dldt/inference-engine.zip",
