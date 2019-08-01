@@ -3,7 +3,7 @@ node {
     def ENV = ""
     def AWS_REGION = "us-east-1"
     def GIT_CREDS_ID = ""
-    def GIT_COMMIT = "unknown"
+    def GIT_COMMIT = "develop"
     def PACKAGE = true
     def DEPLOY_BUCKET = ""
 
