@@ -4,6 +4,7 @@ node {
     def AWS_REGION = "us-east-1"
     def GIT_CREDS_ID = ""
     def PACKAGE = true
+    def DEPLOY_BUCKET = ""
 
     stage("Platform Env Setup") {
 
@@ -21,6 +22,7 @@ node {
             PACKAGE = false
         }
 
+        DEPLOY_BUCKET = "com-subtlemedical-${ENV}-public"
         GIT_CREDS_ID = env.GIT_CREDS_ID
 
         dir('subtle-platform-utils') {
@@ -58,25 +60,24 @@ node {
         }
     }
 
-    // stage("Test") {
-    //     echo 'Testing...'
-    //     docker.image("centos:7"){
-    //         sh '''
-    //             yum -y install https://centos7.iuscommunity.org/ius-release.rpm > /dev/null
-    //             yum -y install python35u python35u-pip > /dev/null
-    //             echo "Testing on CentOS 7..."
-    //         '''
-    //     }
-    //     docker.image("ubuntu:16.04"){
-    //         sh '''
-    //             apt-get update -y > /dev/null
-    //             apt-get install -y python3 python3-pip > /dev/null
-    //             echo "Testing on Ubuntu 16.04..."
-    //         '''
-    //     }
-    // }
-
     stage("Package and Upload") {
+        if (env.BRANCH_NAME ==~ /(master|release\/(.*)|hotfix\/(.*))/) {
+            echo "Uploading the artifacts to S3..."
+            s3Upload(
+                file: "com-subtlemedical-dldt/inference-engine.zip",
+                bucket: "${DEPLOY_BUCKET}",
+                path: "dldt/${GIT_COMMIT}/inference-engine.zip",
+                acl: "PublicRead"
+            )
+            s3Upload(
+                file: "com-subtlemedical-dldt/model-optimizer.zip",
+                bucket: "${DEPLOY_BUCKET}",
+                path: "dldt/${GIT_COMMIT}/model-optimizer.zip",
+                acl: "PublicRead"
+            )
+        } else {
+            echo "Skipping deployment for feature branches"
+        }
     }
 
 }
