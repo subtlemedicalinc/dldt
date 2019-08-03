@@ -247,6 +247,18 @@ class BuildSubtle:
 
     def package_inference_engine(self):
         """Package the inference engine components"""
+        tbb_lib_dir = os.path.join(
+            THIS_DIR, "..", "inference-engine", "temp", "tbb", "lib"
+        )
+        if platform.platform().lower().startswith("darwin"):
+            gomp_lib_path = ""
+            tbb_lib_paths = [os.path.join(tbb_lib_dir, "libtbb.dylib")]
+        else:
+            gomp_lib_path = "/lib64/libgomp.so.1"
+            tbb_lib_paths = [
+                os.path.join(tbb_lib_dir, "libtbb.so"),
+                os.path.join(tbb_lib_dir, "libtbb.so.2"),
+            ]
         logging.info("Packaging inference engine binaries...")
         lib_dir = os.path.join(
             THIS_DIR,
@@ -258,26 +270,19 @@ class BuildSubtle:
             "lib",
         )
         # copy the libgomp.so.1
-        shutil.copyfile(
-            "/lib64/libgomp.so.1", os.path.join(lib_dir, "libgomp.so.1")
-        )
+        if gomp_lib_path and os.path.exists(gomp_lib_path):
+            shutil.copyfile(
+                gomp_lib_path,
+                os.path.join(lib_dir, os.path.basename(gomp_lib_path)),
+            )
         # copy the libtbb so files
-        tbb_lib_dir = os.path.join(
-            THIS_DIR, "..", "inference-engine", "temp", "tbb", "lib"
-        )
-        if os.path.exists(
-            os.path.join(tbb_lib_dir, "libtbb.so")
-        ) and os.path.exists(os.path.join(tbb_lib_dir, "libtbb.so.2")):
-            shutil.copyfile(
-                os.path.join(tbb_lib_dir, "libtbb.so"),
-                os.path.join(lib_dir, "libtbb.so"),
-            )
-            shutil.copyfile(
-                os.path.join(tbb_lib_dir, "libtbb.so.2"),
-                os.path.join(lib_dir, "libtbb.so.2"),
-            )
-        else:
-            logging.warning("Missing tbb so files!")
+        for lib_path in tbb_lib_paths:
+            if os.path.exists(lib_path):
+                shutil.copyfile(
+                    lib_path, os.path.join(lib_dir, os.path.basename(lib_path))
+                )
+            else:
+                logging.warning("Missing tbb so files [%s]!", lib_path)
         # copy the libmklml_gnu.so
         if (
             self._mklml_enabled
